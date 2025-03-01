@@ -1,0 +1,96 @@
+{
+    "build": {
+        "dockerfile": "Dockerfile.dev",
+	"context":"./",
+        "options": [
+            "--network=host",
+            "--build-arg","BASE_IMAGE=nvidia/cuda:12.1.0-devel-ubuntu22.04",
+            "--build-arg", "PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/",
+            "--build-arg", "LANGUAGE=zh",
+            "--build-arg", "BUILD_LOCAL_CODE=true",
+            "--build-arg", "LOAD_EXAMPLES=true",
+            "--build-arg", "DB_GPT_INSTALL_MODEL=default"
+        ],
+        "args": {
+            "USER_UID": "${localEnv:UID}",
+            "USER_GID": "${localEnv:GID}"
+          }
+    },
+    "name": "db-gpt",
+    "workspaceFolder": "/app",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+    // "runArgs": [
+    //     "--network",
+    //     "host", // 使用主机的网络堆栈
+    //     "--runtime=nvidia",
+    //     "--gpus",
+    //     "all"
+    // ],
+    // 不使用gpu
+    "runArgs": [
+        "--network",
+        "host",
+        "--runtime=nvidia",
+    "--gpus",
+    "all",
+
+	"-e", "LOCAL_DB_HOST=127.0.0.1",
+"-e", "LOCAL_DB_PASSWORD=1q2w3e!#Qzh",
+"-e", "MYSQL_ROOT_PASSWORD=1q2w3e!#Qzh",
+"-e", "LLM_MODEL=proxyllm",
+"-e" ,"LANGUAGE=zh",
+"-e", "PROXY_API_KEY=sk-b724feefd5fc47f8a116027eb4aa6984",
+"-e", "PROXY_SERVER_URL=https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ],
+    "mounts": [
+        "source=${localEnv:SSH_AUTH_SOCK},target=/run/host-services/ssh-auth.sock,type=bind",
+	    "source=/data/work/models/text2vec-large-chinese,target=/app/models/text2vec-large-chinese,type=bind"
+
+    ],
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
+      },
+      "remoteUser": "root",
+    "postCreateCommand": "chmod +x /app/.devcontainer/post-create.sh && /app/.devcontainer/post-create.sh",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "extensions.verifySignature": false,
+                // "http.proxy": "http://127.0.0.1:20172", // 设置代理地址
+                // "https.proxy": "http://127.0.0.1:20172", // 设置 HTTPS 代理地址
+                "http.proxyStrictSSL": false, // 禁用代理的 SSL 校验（如果需要）
+                "python.formatting.autopep8Path": "/usr/local/bin/autopep8",
+                "python.linting.flake8Enabled": true,
+                "python.linting.flake8Path": "/usr/local/bin/flake8",
+                "python.sorting.isortPath": "/usr/local/bin/isort",
+                "python.languageServer": "Pylance",
+                "python.linting.enabled": true,
+                "python.linting.flake8Args": [
+                    "--max-line-length=120",
+                    "--ignore=E203,E501,W503"
+                ],
+                "autopep8.args": [
+                    "--aggressive",
+                    "--aggressive",
+                    "--max-line-length",
+                    "120"
+                ],
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "terminal.integrated.shell.linux": "/bin/zsh"
+
+
+            },
+            "extensions": [
+                "ms-python.python", // 安装 Python 扩展
+                "ms-python.isort",
+                "ms-python.vscode-pylance",
+                "ms-python.autopep8",
+                "Plex.vscode-protolint",
+                "zxh404.vscode-proto3",
+                "ms-vscode.makefile-tools",
+                "ms-python.flake8",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    }
+}

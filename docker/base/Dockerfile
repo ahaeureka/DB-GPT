@@ -3,7 +3,7 @@ FROM ${BASE_IMAGE} as builder
 ARG BASE_IMAGE
 ARG PYTHON_VERSION=3.10
 ARG PYPI_MIRROR=https://pypi.org/simple
-ARG EXTRAS="proxy_openai,rag,storage_chromadb,quant_bnb"
+ARG EXTRAS="proxy_openai,rag,storage_chromadb,quant_bnb,graph_rag"
 ARG VERSION=latest
 
 ENV PYTHONUNBUFFERED=1 \
@@ -58,7 +58,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ARG BUILD_LOCAL_CODE="false"
 ARG LANGUAGE="en"
-ARG PIP_INDEX_URL="https://pypi.org/simple"
+ARG PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
 ENV PIP_INDEX_URL=$PIP_INDEX_URL
 ARG DB_GPT_INSTALL_MODEL="default"
 ENV DB_GPT_INSTALL_MODEL=$DB_GPT_INSTALL_MODEL

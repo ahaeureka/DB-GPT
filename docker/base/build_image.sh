@@ -153,5 +153,6 @@ docker build $BUILD_NETWORK \
     --build-arg LOAD_EXAMPLES=$LOAD_EXAMPLES \
     --build-arg DB_GPT_INSTALL_MODEL=$DB_GPT_INSTALL_MODEL \
     --build-arg EXTRAS=$EXTRAS \
+    --build-arg PYPI_MIRROR=$PIP_INDEX_URL \
     -f $DOCKERFILE \
     -t $IMAGE_NAME $WORK_DIR/../../

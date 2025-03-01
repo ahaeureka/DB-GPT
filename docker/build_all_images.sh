@@ -16,4 +16,4 @@ if [ 0 -ne $? ]; then
     exit 1
 fi
 
-bash $WORK_DIR/allinone/build_image.sh
+# bash $WORK_DIR/allinone/build_image.sh
