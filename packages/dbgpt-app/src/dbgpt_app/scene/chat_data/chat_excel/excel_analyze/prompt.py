@@ -35,13 +35,13 @@ Constraint:
     <api-call><name>[data display mode]</name><args><sql>\
     [correct duckdb data analysis sql]</sql></args></api - call> \
     For this format, please refer to the return format requirements.
-    
+
 Please think step by step and give your answer, and make sure your answer is formatted\
  as follows:
     thoughts summary to say to user.\
     <api-call><name>[Data display method]</name><args><sql>\
     [Correct duckdb data analysis sql]</sql></args></api-call>
-    
+
 User Questions:
     {user_input}
 """
@@ -50,24 +50,28 @@ _PROMPT_SCENE_DEFINE_ZH = """你是一个数据分析专家！"""
 _DEFAULT_TEMPLATE_ZH = """
 请使用历史对话中的数据结构信息，在满足下面约束条件下通过\
 duckdb sql数据分析回答用户的问题。
-约束条件:
-	1.请充分理解用户的问题，使用duckdb sql的方式进行分析，\
+## 约束条件:
+	- 1.请充分理解用户的问题并参考markdown格式的样本数据的数据特征和结构，使用duckdb sql的方式进行分析，\
 	分析内容按下面要求的输出格式返回，sql请输出在对应的sql参数中
-	2.请从如下给出的展示方式种选择最优的一种用以进行数据渲染，\
+	- 2.请从如下给出的展示方式种选择最优的一种用以进行数据渲染，\
 	将类型名称放入返回要求格式的name参数值种，如果找不到最合适\
 	的则使用'Table'作为展示方式，可用数据展示方式如下: {display_type}
-	3.SQL中需要使用的表名是: {table_name},请检查你生成的sql，\
-	不要使用没在数据结构中的列名
-	4.优先使用数据分析的方式回答，如果用户问题不涉及数据分析内容，你可以按你的理解进行回答
-	5.输出内容中sql部分转换为：\
+	- 3.SQL中需要使用的表名是: {table_name},请检查你生成的sql，\
+	不要使用没在数据结构中的列名,SQL中不需要包含注释,构造过程应该参考样本数据的数据特征和数据结构
+	- 4.优先使用数据分析的方式回答，如果用户问题不涉及数据分析内容，你可以按你的理解进行回答
+    - 5.中文内容不要使用unicode 编码显示直接显示中文
+	- 6.输出内容中sql部分转换为：\
 	<api-call><name>[数据显示方式]</name><args><sql>\
 	[正确的duckdb数据分析sql]</sql></args></api- call> \
 	这样的格式，参考返回格式要求
-	
+
 请一步一步思考，给出回答，并确保你的回答内容格式如下:
     对用户说的想法摘要.<api-call><name>[数据展示方式]</name><args><sql>[正确的duckdb数据分析sql]</sql></args></api-call>
 
-用户问题：{user_input}
+## 样本数据
+{sample_data}
+## 用户问题
+{user_input}
 """
 
 

@@ -14,12 +14,5 @@ RUN  /opt/.uv.venv/bin/python3 -m pip install uv -i https://mirrors.aliyun.com/p
     extras=$(echo $EXTRAS | tr ',' '\n' | while read extra; do echo "--extra $extra"; done | tr '\n' ' ') && \
     echo $extras && \
     /opt/.uv.venv/bin/uv pip install -r pyproject.toml --all-extras && \
-    # Install local packages, pay attention to the installation order
-    cd /app/packages/dbgpt-accelerator && pip install -e . && \
-    cd /app/packages/dbgpt-core && pip install -e . && \
-    cd /app/packages/dbgpt-ext && pip install -e . && \
-    cd /app/packages/dbgpt-client && pip install -e . && \
-    cd /app/packages/dbgpt-serve && pip install -e . && \
-    cd /app/packages/dbgpt-app && pip install -e . && \
     # Verify installation
     python -c "import dbgpt; print(dbgpt.__version__)"

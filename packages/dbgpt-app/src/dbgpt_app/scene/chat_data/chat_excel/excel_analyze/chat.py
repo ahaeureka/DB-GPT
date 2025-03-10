@@ -47,6 +47,7 @@ class ChatExcel(BaseChat):
             "user_input": self.current_user_input,
             "table_name": self.excel_reader.table_name,
             "display_type": self._generate_numbered_list(),
+            "sample_data": self.excel_reader.df.sample(5).to_markdown()
         }
         return input_values
 
@@ -74,9 +75,13 @@ class ChatExcel(BaseChat):
             .replace("\_", "_")
             .replace("\\", " ")
         )
-        with root_tracer.start_span(
-            "ChatExcel.stream_plugin_call.run_display_sql", metadata={"text": text}
-        ):
-            return self.api_call.display_sql_llmvis(
-                text, self.excel_reader.get_df_by_sql_ex
-            )
+        try:
+            with root_tracer.start_span(
+                "ChatExcel.stream_plugin_call.run_display_sql", metadata={"text": text}
+            ):
+                return self.api_call.display_sql_llmvis(
+                    text, self.excel_reader.get_df_by_sql_ex
+                )
+        except Exception as err:
+            pass
+    

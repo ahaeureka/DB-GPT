@@ -48,5 +48,5 @@ fi
 if ! grep -q "autojump.sh" ~/.zshrc; then
   echo '[[ -s /usr/share/autojump/autojump.sh ]] && source /usr/share/autojump/autojump.sh' >> ~/.zshrc
 fi
-
+ln -s /opt/.uv.venv /app/.venv
 echo "Post-create setup completed!"

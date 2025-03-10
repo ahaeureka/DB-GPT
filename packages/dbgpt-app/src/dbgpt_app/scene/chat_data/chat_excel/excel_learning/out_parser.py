@@ -33,7 +33,8 @@ class LearningExcelOutputParser(BaseOutputParser):
                     plans = response[key]
             return ExcelResponse(desciption=desciption, clounms=clounms, plans=plans)
         except Exception as e:
-            logger.error(f"parse_prompt_response Faild!{str(e)}")
+            import traceback
+            logger.error(f"parse_prompt_response Faild!{str(e)}, {traceback.format_exc()}")
             clounms = []
             for name in self.data_schema:
                 clounms.append({name: "-"})

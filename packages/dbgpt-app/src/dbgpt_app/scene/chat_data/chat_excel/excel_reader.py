@@ -4,6 +4,7 @@ import logging
 import os
 
 import chardet
+from dbgpt_app.scene.chat_data.chat_excel.execl_cleaner.cleaner import ExcelDataCleaner
 import duckdb
 import numpy as np
 import pandas as pd
@@ -159,6 +160,7 @@ def parse_select_fields(sql):
 def add_quotes_to_chinese_columns(sql, column_names=[]):
     parsed = sqlparse.parse(sql)
     for stmt in parsed:
+        print(f"add_quotes_to_chinese_columns stmt:{stmt}")
         process_statement(stmt, column_names)
     return str(parsed[0])
 
@@ -223,10 +225,7 @@ def process_function(function):
 
 
 def is_chinese(text):
-    for char in text:
-        if "\u4e00" <= char <= "\u9fa5":  # BMP中的常用汉字范围
-            return True
-    return False
+    return any('\u4e00' <= char <= '\u9fff' for char in text)
 
 
 class ExcelReader:
@@ -276,10 +275,11 @@ class ExcelReader:
 
         # read excel file
         if file_name.endswith(".xlsx") or file_name.endswith(".xls"):
-            df_tmp = pd.read_excel(file_info, index_col=False)
+            df_tmp = pd.read_excel(file_info, index_col=False, encoding=encoding)
             self.df = pd.read_excel(
                 file_info,
                 index_col=False,
+                encoding=encoding,
                 converters={i: csv_colunm_foramt for i in range(df_tmp.shape[1])},
             )
         elif file_name.endswith(".csv"):
@@ -310,23 +310,7 @@ class ExcelReader:
 
         self.df = self.df[df_tmp.columns.values]
         #
-
-        self.columns_map = {}
-        for column_name in df_tmp.columns:
-            self.df[column_name] = self.df[column_name].astype(str)
-            self.columns_map.update({column_name: excel_colunm_format(column_name)})
-            try:
-                self.df[column_name] = pd.to_datetime(self.df[column_name]).dt.strftime(
-                    "%Y-%m-%d"
-                )
-            except ValueError:
-                try:
-                    self.df[column_name] = pd.to_numeric(self.df[column_name])
-                except ValueError:
-                    try:
-                        self.df[column_name] = self.df[column_name].astype(str)
-                    except Exception:
-                        print("Can't transform column: " + column_name)
+        self.df = ExcelDataCleaner(self.df).clean_data().get_clean_data()
 
         self.df = self.df.rename(columns=lambda x: x.strip().replace(" ", "_"))
 

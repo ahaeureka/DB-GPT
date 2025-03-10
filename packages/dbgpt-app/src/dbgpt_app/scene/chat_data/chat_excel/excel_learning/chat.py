@@ -47,9 +47,8 @@ class ExcelLearning(BaseChat):
         )
         self.prompt_template.output_parser.update(colunms)
         datas.insert(0, colunms)
-
         input_values = {
-            "data_example": json.dumps(datas, cls=EnhancedJSONEncoder),
+            "data_example": json.dumps(datas, cls=EnhancedJSONEncoder, ensure_ascii=False),
             "file_name": self.excel_reader.excel_file_name,
         }
         return input_values

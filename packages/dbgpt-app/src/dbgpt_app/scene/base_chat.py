@@ -291,6 +291,46 @@ class BaseChat(ABC):
         )
         return metadata
 
+    async def retry_for_exception(self, message: str, ex: Exception):
+        pass
+
+    async def stream_call_with_payload(self, payload: ModelRequest = None):
+        payload = payload or await self._build_model_request()
+
+        logger.info(f"payload request: \n{payload}")
+        ai_response_text = ""
+        span = root_tracer.start_span(
+            "BaseChat.stream_call_with_payload", metadata=payload.to_dict()
+        )
+        payload.span_id = span.span_id
+        try:
+            msg = "<span style='color:red'>ERROR!</span> No response from model"
+            view_msg = msg
+            async for output in self.call_streaming_operator(payload):
+                # Plugin research in result generation
+                msg = self.prompt_template.output_parser.parse_model_stream_resp_ex(
+                    output, 0
+                )
+                view_msg = self.stream_plugin_call(msg)
+                view_msg = view_msg.replace("\n", "\\n")
+                yield view_msg
+            self.current_message.add_ai_message(msg)
+            view_msg = self.stream_call_reinforce_fn(view_msg)
+            self.current_message.add_view_message(view_msg)
+            span.end()
+        except Exception as e:
+            print(traceback.format_exc())
+            logger.error("model response parse failed！" + str(e))
+            self.current_message.add_view_message(
+                f"""<span style=\"color:red\">ERROR!</span>{str(e)}
+{ai_response_text} """
+            )
+            # store current conversation
+            span.end(metadata={"error": str(e)})
+        await blocking_func_to_async(
+            self._executor, self.current_message.end_current_round
+        )
+
     async def stream_call(self):
         # TODO Retry when server connection error
         payload = await self._build_model_request()
@@ -323,7 +363,7 @@ class BaseChat(ABC):
                 f"""<span style=\"color:red\">ERROR!</span>{str(e)}
 {ai_response_text} """
             )
-            ### store current conversation
+            # store current conversation
             span.end(metadata={"error": str(e)})
         await blocking_func_to_async(
             self._executor, self.current_message.end_current_round
@@ -404,13 +444,13 @@ class BaseChat(ABC):
         prompt_define_response = None
         try:
             model_output = await self.call_llm_operator(payload)
-            ### output parse
+            # output parse
             ai_response_text = (
                 self.prompt_template.output_parser.parse_model_nostream_resp(
                     model_output, self.prompt_template.sep
                 )
             )
-            ### model result deal
+            # model result deal
             self.current_message.add_ai_message(ai_response_text)
             prompt_define_response = (
                 self.prompt_template.output_parser.parse_prompt_response(

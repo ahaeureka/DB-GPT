@@ -1,20 +1,26 @@
 {
     "build": {
         "dockerfile": "Dockerfile.dev",
-	"context":"./",
+        "context": "./",
         "options": [
             "--network=host",
-            "--build-arg","BASE_IMAGE=nvidia/cuda:12.1.0-devel-ubuntu22.04",
-            "--build-arg", "PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/",
-            "--build-arg", "LANGUAGE=zh",
-            "--build-arg", "BUILD_LOCAL_CODE=true",
-            "--build-arg", "LOAD_EXAMPLES=true",
-            "--build-arg", "DB_GPT_INSTALL_MODEL=default"
+            "--build-arg",
+            "BASE_IMAGE=nvidia/cuda:12.1.0-devel-ubuntu22.04",
+            "--build-arg",
+            "PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/",
+            "--build-arg",
+            "LANGUAGE=zh",
+            "--build-arg",
+            "BUILD_LOCAL_CODE=true",
+            "--build-arg",
+            "LOAD_EXAMPLES=true",
+            "--build-arg",
+            "DB_GPT_INSTALL_MODEL=default"
         ],
         "args": {
             "USER_UID": "${localEnv:UID}",
             "USER_GID": "${localEnv:GID}"
-          }
+        }
     },
     "name": "db-gpt",
     "workspaceFolder": "/app",
@@ -31,26 +37,31 @@
         "--network",
         "host",
         "--runtime=nvidia",
-    "--gpus",
-    "all",
-
-	"-e", "LOCAL_DB_HOST=127.0.0.1",
-"-e", "LOCAL_DB_PASSWORD=1q2w3e!#Qzh",
-"-e", "MYSQL_ROOT_PASSWORD=1q2w3e!#Qzh",
-"-e", "LLM_MODEL=proxyllm",
-"-e" ,"LANGUAGE=zh",
-"-e", "PROXY_API_KEY=sk-b724feefd5fc47f8a116027eb4aa6984",
-"-e", "PROXY_SERVER_URL=https://dashscope.aliyuncs.com/compatible-mode/v1"
+        "--gpus",
+        "all",
+        "-e",
+        "LOCAL_DB_HOST=127.0.0.1",
+        "-e",
+        "LOCAL_DB_PASSWORD=1q2w3e!#Qzh",
+        "-e",
+        "MYSQL_ROOT_PASSWORD=1q2w3e!#Qzh",
+        "-e",
+        "LLM_MODEL=tongyi_proxyllm",
+        "-e",
+        "LANGUAGE=zh",
+        "-e",
+        "PROXY_SERVER_URL=https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "-e",
+        "HF_HOME=/app/models"
     ],
     "mounts": [
         "source=${localEnv:SSH_AUTH_SOCK},target=/run/host-services/ssh-auth.sock,type=bind",
-	    "source=/data/work/models/text2vec-large-chinese,target=/app/models/text2vec-large-chinese,type=bind"
-
+        "source=${localWorkspaceFolder}/models/text2vec-large-chinese,target=/app/models/text2vec-large-chinese,type=bind"
     ],
     "containerEnv": {
         "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
-      },
-      "remoteUser": "root",
+    },
+    "remoteUser": "root",
     "postCreateCommand": "chmod +x /app/.devcontainer/post-create.sh && /app/.devcontainer/post-create.sh",
     "customizations": {
         "vscode": {
@@ -77,8 +88,6 @@
                 ],
                 "terminal.integrated.defaultProfile.linux": "zsh",
                 "terminal.integrated.shell.linux": "/bin/zsh"
-
-
             },
             "extensions": [
                 "ms-python.python", // 安装 Python 扩展

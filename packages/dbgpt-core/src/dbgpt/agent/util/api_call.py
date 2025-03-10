@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
@@ -149,6 +150,19 @@ class ApiCall:
 
         return all_context
 
+    def remove_codeblock_prefix_suffix(self, text):
+        pattern = r'(^```\w+\s*)|(```\s*$)'  # 匹配前缀和后缀的组合
+        return re.sub(pattern, '', text).strip()  # 替换为空并去除残留空格
+
+    def extract_code_blocks(self, text):
+        pattern = re.compile(r'```[a-zA-Z]*\s*(.*?)```', re.DOTALL | re.MULTILINE)
+
+        # 使用findall替代search，支持多个代码块提取
+        matches = pattern.findall(text)
+
+        # 返回所有代码块内容（去除首尾空白）
+        return [self.remove_codeblock_prefix_suffix(code.strip()) for code in matches] if matches else []
+
     def update_from_context(self, all_context):
         """Modify the plugin status map based on the context."""
         api_context_map: Dict[int, str] = extract_content(
@@ -163,7 +177,10 @@ class ApiCall:
             api_args = {}
             args_elements = api_call_element.find("args")
             for child_element in args_elements.iter():
-                api_args[child_element.tag] = child_element.text
+                codes = []
+                if child_element.text:
+                    codes = self.extract_code_blocks(child_element.text)
+                api_args[child_element.tag] = child_element.text if len(codes) == 0 else codes[0]
 
             api_status = self.plugin_status_map.get(api_context)
             if api_status is None:

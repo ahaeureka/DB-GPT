@@ -42,7 +42,7 @@ _DEFAULT_TEMPLATE_ZH = """
     {data_example}
 分析各列数据的含义和作用，并对专业术语进行简单明了的解释, \
 如果是时间类型请给出时间格式类似:yyyy-MM-dd HH:MM:ss.
-将列名作为属性名，分析解释作为属性值,组成json数组，\
+将列名作为属性名，分析解释作为属性值,组成`ColumnAnalysis`数组，\
 并输出在返回json内容的ColumnAnalysis属性中.
 请不要修改或者翻译列名，确保和给出数据列名一致.
 针对数据从不同维度提供一些有用的分析思路给用户。
@@ -53,8 +53,9 @@ _DEFAULT_TEMPLATE_ZH = """
 
 _RESPONSE_FORMAT_SIMPLE_ZH = {
     "DataAnalysis": "数据内容分析总结",
-    "ColumnAnalysis": [{"column name": "字段1介绍，专业术语解释(请尽量简单明了)"}],
+    "ColumnAnalysis": [{"column name(中文本不需要unicode编码，直接显示即可)": "字段1介绍，专业术语解释(请尽量简单明了)"}],
     "AnalysisProgram": ["1.分析方案1", "2.分析方案2"],
+    "ColumnType":[{"column name(中文本不需要unicode编码，直接显示即可)": "推断该字段的数据类型(取值，number|str|datetime)"}]
 }
 _RESPONSE_FORMAT_SIMPLE_EN = {
     "DataAnalysis": "Data content analysis summary",
