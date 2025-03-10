@@ -4,7 +4,7 @@ Fork from text-generation-webui https://github.com/oobabooga/text-generation-web
 
 import logging
 import re
-from typing import Dict
+from typing import Dict, Optional
 
 import llama_cpp
 import torch
@@ -12,6 +12,12 @@ import torch
 from dbgpt.core import ModelOutput
 from dbgpt.model.adapter.llama_cpp_py_adapter import LlamaCppModelParameters
 from dbgpt.model.utils.llm_utils import parse_model_request
+
+from ...utils.parse_utils import (
+    _DEFAULT_THINK_START_TOKEN,
+    ParsedChatMessage,
+    parse_chat_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +117,8 @@ class LlamaCppModel:
         messages = request.to_common_messages()
         repetition_penalty = float(params.get("repetition_penalty", 1.1))
         top_k = int(params.get("top_k", -1))  # -1 means disable
+        think_start_token = params.get("think_start_token", _DEFAULT_THINK_START_TOKEN)
+        is_reasoning_model = params.get("is_reasoning_model", False)
         # Handle truncation
         completion_chunks = self.model.create_chat_completion(
             messages=messages,
@@ -124,10 +132,37 @@ class LlamaCppModel:
         )
 
         text = ""
+        usage = None
+        msg = ParsedChatMessage()
+        finish_reason: Optional[str] = None
+        is_first = True
         for r in completion_chunks:
             if not r.get("choices"):
                 continue
-            if r["choices"][0]["delta"].get("content") is not None:
-                content = r["choices"][0]["delta"]["content"]
+            delta = r["choices"][0]["delta"]
+            if delta.get("content") is not None:
+                content = delta["content"]
                 text += content
-                yield ModelOutput(text=text, error_code=0)
+                if (
+                    is_reasoning_model
+                    and not text.startswith(think_start_token)
+                    and is_first
+                ):
+                    text = think_start_token + "\n" + text
+                    is_first = False
+                msg = parse_chat_message(
+                    text,
+                    extract_reasoning=is_reasoning_model,
+                )
+                finish_reason = delta.get("finish_reason")
+            if text:
+                if hasattr(r, "usage") and r.usage is not None:
+                    usage = r.usage.dict()
+                yield ModelOutput.build(
+                    msg.content,
+                    msg.reasoning_content,
+                    error_code=0,
+                    usage=usage,
+                    finish_reason=finish_reason,
+                    is_reasoning_model=is_reasoning_model,
+                )

@@ -17,6 +17,12 @@ from typing import Dict, Optional
 
 from dbgpt.core import ModelOutput
 
+from ...utils.parse_utils import (
+    _DEFAULT_THINK_START_TOKEN,
+    ParsedChatMessage,
+    parse_chat_message,
+)
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -76,6 +82,10 @@ def chat_generate_stream(
 ):
     req = _build_chat_completion_request(params, stream=True)
     text = ""
+    think_start_token = params.get("think_start_token", _DEFAULT_THINK_START_TOKEN)
+    is_reasoning_model = params.get("is_reasoning_model", False)
+    msg = ParsedChatMessage()
+    is_first = True
     for r in model.stream_chat_completion(req):
         if len(r.choices) == 0:
             continue
@@ -83,19 +93,25 @@ def chat_generate_stream(
         if r.choices[0] is not None and r.choices[0].delta is None:
             continue
         content = r.choices[0].delta.content
+        if content is None:
+            continue
+
+        text += content
+        if is_reasoning_model and not text.startswith(think_start_token) and is_first:
+            text = think_start_token + "\n" + text
+            is_first = False
+
+        msg = parse_chat_message(text, extract_reasoning=is_reasoning_model)
         finish_reason = _parse_finish_reason(r.choices[0].finish_reason)
 
-        if content is not None:
-            content = r.choices[0].delta.content
-            text += content
-            yield ModelOutput(
-                text=text, error_code=0, finish_reason=finish_reason, usage=r.usage
-            )
-        elif text and content is None:
-            # Last response is empty, return the text
-            yield ModelOutput(
-                text=text, error_code=0, finish_reason=finish_reason, usage=r.usage
-            )
+        yield ModelOutput.build(
+            msg.content,
+            msg.reasoning_content,
+            error_code=0,
+            finish_reason=finish_reason,
+            usage=r.usage,
+            is_reasoning_model=is_reasoning_model,
+        )
 
 
 def _build_chat_completion_request(
@@ -160,13 +176,14 @@ def generate(
         if not resp.choices or not resp.choices[0].message:
             raise ValueError("Response can't be empty")
         content = resp.choices[0].message.content
-        return ModelOutput(
-            text=content,
+        msg = parse_chat_message(content, extract_reasoning=True)
+        return ModelOutput.build(
+            msg.content,
+            msg.reasoning_content,
             error_code=0,
             finish_reason=_parse_finish_reason(resp.choices[0].finish_reason),
             usage=resp.usage,
         )
-
     else:
         req = _build_completion_request(params, stream=False)
         resp = model.completion(req)

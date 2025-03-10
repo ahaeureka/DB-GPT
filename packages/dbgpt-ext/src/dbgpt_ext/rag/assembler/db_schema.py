@@ -60,40 +60,12 @@ class DBSchemaAssembler(BaseAssembler):
         self._connector = connector
         self._table_vector_store_connector = table_vector_store_connector
         self._field_vector_store_connector = field_vector_store_connector
-        # field_vector_store_config = VectorStoreConfig(
-        #     name=table_vector_store_connector.vector_store_config.name + "_field"
-        # )
-        # self._field_vector_store_connector = (
-        #     field_vector_store_connector
-        #     or VectorStoreConnector.from_default(
-        #         os.getenv("VECTOR_STORE_TYPE", "Chroma"),
-        #         self._table_vector_store_connector.current_embeddings,
-        #         vector_store_config=field_vector_store_config,
-        #     )
-        # )
-
         self._embedding_model = embedding_model
         if self._embedding_model and not embeddings:
             embeddings = DefaultEmbeddingFactory(
                 default_model_name=self._embedding_model
             ).create(self._embedding_model)
 
-        # if (
-        #     embeddings
-        #     and self._table_vector_store_connector.vector_store_config.embedding_fn
-        #     is None
-        # ):
-        #     self._table_vector_store_connector.vector_store_config.embedding_fn = (
-        #         embeddings
-        #     )
-        # if (
-        #     embeddings
-        #     and self._field_vector_store_connector.vector_store_config.embedding_fn
-        #     is None
-        # ):
-        #     self._field_vector_store_connector.vector_store_config.embedding_fn = (
-        #         embeddings
-        #     )
         knowledge = DatasourceKnowledge(connector, model_dimension=max_seq_length)
         super().__init__(
             knowledge=knowledge,
@@ -159,8 +131,8 @@ class DBSchemaAssembler(BaseAssembler):
                 table_chunks.append(chunk)
 
         if self._field_vector_store_connector and field_chunks:
-            self._field_vector_store_connector.load_document(field_chunks)
-        return self._table_vector_store_connector.load_document(table_chunks)
+            self._field_vector_store_connector.load_document_with_limit(field_chunks)
+        return self._table_vector_store_connector.load_document_with_limit(table_chunks)
 
     def _extract_info(self, chunks) -> List[Chunk]:
         """Extract info from chunks."""

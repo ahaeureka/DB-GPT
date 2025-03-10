@@ -38,7 +38,7 @@ try:
         from transformers.utils import is_torch_npu_available
 
         transformers.is_torch_npu_available = is_torch_npu_available
-except ImportError:
+except Exception:
     pass
 
 
@@ -113,7 +113,7 @@ class HFEmbeddingDeployModelParameters(EmbeddingDeployModelParameters):
     @property
     def real_provider_model_name(self) -> str:
         """Get the real provider model name."""
-        return self.path or self.name
+        return self.real_model_path or self.name
 
     @property
     def real_model_path(self) -> Optional[str]:

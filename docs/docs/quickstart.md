@@ -74,6 +74,19 @@ uv --version
 ```
 
 ## Deploy DB-GPT 
+:::tip
+If you are in the China region, you can add --index-url=https://pypi.tuna.tsinghua.edu.cn/simple at the end of the command.Like this:
+```bash
+uv sync --all-packages \
+--extra "base" \
+--extra "proxy_openai" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "dbgpts" \
+--index-url=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+This tutorial assumes that you can establish network communication with the dependency download sources.
+:::
 
 ### Install Dependencies
 
@@ -81,14 +94,19 @@ uv --version
   defaultValue="openai"
   values={[
     {label: 'OpenAI (proxy)', value: 'openai'},
+    {label: 'DeepSeek (proxy)', value: 'deepseek'},
     {label: 'GLM4 (local)', value: 'glm-4'},
+    {label: 'VLLM (local)', value: 'vllm'},
+    {label: 'LLAMA_CPP (local)', value: 'llama_cpp'},
+    {label: 'Ollama (proxy)', value: 'ollama'},
   ]}>
 
   <TabItem value="openai" label="OpenAI(proxy)">
 
 ```bash
 # Use uv to install dependencies needed for OpenAI proxy
-uv sync --all-packages --frozen \
+uv sync --all-packages \
+--extra "base" \
 --extra "proxy_openai" \
 --extra "rag" \
 --extra "storage_chromadb" \
@@ -123,15 +141,73 @@ uv run python packages/dbgpt-app/src/dbgpt_app/dbgpt_server.py --config configs/
 ```
 
   </TabItem>
+<TabItem value="deepseek" label="DeepSeek(proxy)">
+
+```bash
+# Use uv to install dependencies needed for OpenAI proxy
+uv sync --all-packages \
+--extra "base" \
+--extra "proxy_openai" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "dbgpts"
+```
+
+### Run Webserver
+
+To run DB-GPT with DeepSeek proxy, you must provide the DeepSeek API key in the `configs/dbgpt-proxy-deepseek.toml`.
+
+And you can specify your embedding model in the `configs/dbgpt-proxy-deepseek.toml` configuration file, the default embedding model is `BAAI/bge-large-zh-v1.5`. If you want to use other embedding models, you can modify the `configs/dbgpt-proxy-deepseek.toml` configuration file and specify the `name` and `provider` of the embedding model in the `[[models.embeddings]]` section. The provider can be `hf`.Finally, you need to append `--extra "hf"` at the end of the dependency installation command. Here's the updated command:
+```bash
+uv sync --all-packages \
+--extra "base" \
+--extra "proxy_openai" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "dbgpts" \
+--extra "hf" 
+```
+**Model Configurations**:
+```toml
+# Model Configurations
+[models]
+[[models.llms]]
+# name = "deepseek-chat"
+name = "deepseek-reasoner"
+provider = "proxy/deepseek"
+api_key = "your-deepseek-api-key"
+[[models.embeddings]]
+name = "BAAI/bge-large-zh-v1.5"
+provider = "hf"
+# If not provided, the model will be downloaded from the Hugging Face model hub
+# uncomment the following line to specify the model path in the local file system
+# path = "the-model-path-in-the-local-file-system"
+path = "/data/models/bge-large-zh-v1.5"
+```
+
+Then run the following command to start the webserver:
+
+```bash
+uv run dbgpt start webserver --config configs/dbgpt-proxy-deepseek.toml
+```
+In the above command, `--config` specifies the configuration file, and `configs/dbgpt-proxy-deepseek.toml` is the configuration file for the DeepSeek proxy model, you can also use other configuration files or create your own configuration file according to your needs.
+
+Optionally, you can also use the following command to start the webserver:
+```bash
+uv run python packages/dbgpt-app/src/dbgpt_app/dbgpt_server.py --config configs/dbgpt-proxy-deepseek.toml
+```
+
+  </TabItem>
   <TabItem value="glm-4" label="GLM4(local)">
 
 ```bash
 # Use uv to install dependencies needed for GLM4
 # Install core dependencies and select desired extensions
-uv sync --all-packages --frozen \
+uv sync --all-packages \
+--extra "base" \
+--extra "hf" \
 --extra "rag" \
 --extra "storage_chromadb" \
---extra "hf" \
 --extra "quant_bnb" \
 --extra "dbgpts"
 ```
@@ -163,6 +239,149 @@ Then run the following command to start the webserver:
 
 ```bash
 uv run dbgpt start webserver --config configs/dbgpt-local-glm.toml
+```
+
+  </TabItem>
+    <TabItem value="vllm" label="VLLM(local)">
+
+```bash
+# Use uv to install dependencies needed for vllm
+# Install core dependencies and select desired extensions
+uv sync --all-packages \
+--extra "base" \
+--extra "vllm" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "quant_bnb" \
+--extra "dbgpts"
+```
+
+### Run Webserver
+
+To run DB-GPT with the local model. You can modify the `configs/dbgpt-local-vllm.toml` configuration file to specify the model path and other parameters.
+
+```toml
+# Model Configurations
+[models]
+[[models.llms]]
+name = "THUDM/glm-4-9b-chat-hf"
+provider = "vllm"
+# If not provided, the model will be downloaded from the Hugging Face model hub
+# uncomment the following line to specify the model path in the local file system
+# path = "the-model-path-in-the-local-file-system"
+
+[[models.embeddings]]
+name = "BAAI/bge-large-zh-v1.5"
+provider = "hf"
+# If not provided, the model will be downloaded from the Hugging Face model hub
+# uncomment the following line to specify the model path in the local file system
+# path = "the-model-path-in-the-local-file-system"
+```
+In the above configuration file, `[[models.llms]]` specifies the LLM model, and `[[models.embeddings]]` specifies the embedding model. If you not provide the `path` parameter, the model will be downloaded from the Hugging Face model hub according to the `name` parameter.
+
+Then run the following command to start the webserver:
+
+```bash
+uv run dbgpt start webserver --config configs/dbgpt-local-vllm.toml
+```
+
+  </TabItem>
+  <TabItem value="llama_cpp" label="LLAMA_CPP(local)">
+
+If you has a Nvidia GPU, you can enable the CUDA support by setting the environment variable `CMAKE_ARGS="-DGGML_CUDA=ON"`.
+
+```bash
+# Use uv to install dependencies needed for llama-cpp
+# Install core dependencies and select desired extensions
+CMAKE_ARGS="-DGGML_CUDA=ON" uv sync --all-packages \
+--extra "base" \
+--extra "llama_cpp" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "quant_bnb" \
+--extra "dbgpts"
+```
+
+Otherwise, run the following command to install dependencies without CUDA support.
+```bash
+# Use uv to install dependencies needed for llama-cpp
+# Install core dependencies and select desired extensions
+uv sync --all-packages \
+--extra "base" \
+--extra "llama_cpp" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "quant_bnb" \
+--extra "dbgpts"
+```
+
+### Run Webserver
+
+To run DB-GPT with the local model. You can modify the `configs/dbgpt-local-llama-cpp.toml` configuration file to specify the model path and other parameters.
+
+```toml
+# Model Configurations
+[models]
+[[models.llms]]
+name = "DeepSeek-R1-Distill-Qwen-1.5B"
+provider = "llama.cpp"
+# If not provided, the model will be downloaded from the Hugging Face model hub
+# uncomment the following line to specify the model path in the local file system
+# path = "the-model-path-in-the-local-file-system"
+
+[[models.embeddings]]
+name = "BAAI/bge-large-zh-v1.5"
+provider = "hf"
+# If not provided, the model will be downloaded from the Hugging Face model hub
+# uncomment the following line to specify the model path in the local file system
+# path = "the-model-path-in-the-local-file-system"
+```
+In the above configuration file, `[[models.llms]]` specifies the LLM model, and `[[models.embeddings]]` specifies the embedding model. If you not provide the `path` parameter, the model will be downloaded from the Hugging Face model hub according to the `name` parameter.
+
+Then run the following command to start the webserver:
+
+```bash
+uv run dbgpt start webserver --config configs/dbgpt-local-llama-cpp.toml
+```
+
+  </TabItem>
+    <TabItem value="ollama" label="Ollama(proxy)">
+
+```bash
+# Use uv to install dependencies needed for Ollama proxy
+uv sync --all-packages \
+--extra "base" \
+--extra "proxy_ollama" \
+--extra "rag" \
+--extra "storage_chromadb" \
+--extra "dbgpts"
+```
+
+### Run Webserver
+
+To run DB-GPT with Ollama proxy, you must provide the Ollama API base in the `configs/dbgpt-proxy-ollama.toml` configuration file.
+
+```toml
+# Model Configurations
+[models]
+[[models.llms]]
+...
+api_base = "your-ollama-api-base"
+[[models.embeddings]]
+...
+api_base = "your-ollama-api-base"
+```
+
+Then run the following command to start the webserver:
+
+```bash
+uv run dbgpt start webserver --config configs/dbgpt-proxy-ollama.toml
+```
+In the above command, `--config` specifies the configuration file, and `configs/dbgpt-proxy-ollama.toml` is the configuration file for the Ollama proxy model, you can also use other configuration files or create your own configuration file according to your needs.
+
+Optionally, you can also use the following command to start the webserver:
+```bash
+uv run python packages/dbgpt-app/src/dbgpt_app/dbgpt_server.py --config configs/dbgpt-proxy-ollama.toml
 ```
 
   </TabItem>

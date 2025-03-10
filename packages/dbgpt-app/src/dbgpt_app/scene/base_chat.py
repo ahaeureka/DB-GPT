@@ -2,7 +2,7 @@ import datetime
 import logging
 import traceback
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Dict
+from typing import Any, AsyncIterator, Dict, Optional, Union
 
 from dbgpt._private.config import Config
 from dbgpt.component import ComponentType, SystemApp
@@ -33,7 +33,7 @@ from dbgpt_app.scene.operators.app_operator import (
 from dbgpt_serve.conversation.serve import Serve as ConversationServe
 from dbgpt_serve.prompt.service.service import Service as PromptService
 
-from .exceptions import BaseAppException
+from .exceptions import BaseAppException, ContextAppException
 
 logger = logging.getLogger(__name__)
 CFG = Config()
@@ -331,7 +331,9 @@ class BaseChat(ABC):
             self._executor, self.current_message.end_current_round
         )
 
-    async def stream_call(self):
+    async def stream_call(
+        self, text_output: bool = True, incremental: bool = False
+    ) -> AsyncIterator[Union[ModelOutput, str]]:
         # TODO Retry when server connection error
         payload = await self._build_model_request()
 
@@ -341,29 +343,111 @@ class BaseChat(ABC):
             "BaseChat.stream_call", metadata=payload.to_dict()
         )
         payload.span_id = span.span_id
+        full_text = ""
+        full_thinking_text = ""
+        previous_text = ""
+        previous_thinking_text = ""
         try:
-            msg = "<span style='color:red'>ERROR!</span> No response from model"
-            view_msg = msg
+            final_output: Optional[ModelOutput] = None
             async for output in self.call_streaming_operator(payload):
                 # Plugin research in result generation
-                msg = self.prompt_template.output_parser.parse_model_stream_resp_ex(
-                    output, 0
+                final_output = output
+                model_output = (
+                    self.prompt_template.output_parser.parse_model_stream_resp_ex(
+                        output,
+                        text_output=False,
+                    )
                 )
-                view_msg = self.stream_plugin_call(msg)
+                text_msg = model_output.text if model_output.has_text else ""
+                view_msg = self.stream_plugin_call(text_msg)
+                view_msg = model_output.gen_text_with_thinking(new_text=view_msg)
                 view_msg = view_msg.replace("\n", "\\n")
-                yield view_msg
-            self.current_message.add_ai_message(msg)
-            view_msg = self.stream_call_reinforce_fn(view_msg)
+
+                if text_output:
+                    full_text = view_msg
+                    # Return the incremental text
+                    delta_text = full_text[len(previous_text) :]
+                    previous_text = (
+                        full_text
+                        if len(full_text) > len(previous_text)
+                        else previous_text
+                    )
+                    yield delta_text if incremental else full_text
+                else:
+                    if model_output.has_thinking:
+                        full_thinking_text = model_output.thinking_text
+                    if model_output.has_text:
+                        full_text = model_output.text
+                    if not incremental:
+                        yield ModelOutput.build(
+                            full_text,
+                            full_thinking_text,
+                            error_code=model_output.error_code,
+                            usage=model_output.usage,
+                            finish_reason=model_output.finish_reason,
+                            metrics=model_output.metrics,
+                        )
+                    else:
+                        # Return the incremental text
+                        delta_text = full_text[len(previous_text) :]
+                        previous_text = (
+                            full_text
+                            if len(full_text) > len(previous_text)
+                            else previous_text
+                        )
+                        delta_thinking_text = full_thinking_text[
+                            len(previous_thinking_text) :
+                        ]
+                        previous_thinking_text = (
+                            full_thinking_text
+                            if len(full_thinking_text) > len(previous_thinking_text)
+                            else previous_thinking_text
+                        )
+                        yield ModelOutput.build(
+                            delta_text,
+                            delta_thinking_text,
+                            error_code=model_output.error_code,
+                            usage=model_output.usage,
+                            finish_reason=model_output.finish_reason,
+                            metrics=model_output.metrics,
+                        )
+            ai_response_text, view_message = await self._handle_final_output(
+                final_output, incremental=incremental
+            )
+            if text_output:
+                full_text = view_message
+                # Return the incremental text
+                delta_text = full_text[len(previous_text) :]
+                yield delta_text if incremental else full_text
+            else:
+                yield ModelOutput.build(
+                    view_message,
+                    "",
+                    error_code=final_output.error_code,
+                    usage=final_output.usage,
+                    finish_reason=final_output.finish_reason,
+                    metrics=final_output.metrics,
+                )
+
+            self.current_message.add_ai_message(ai_response_text)
+            view_msg = self.stream_call_reinforce_fn(view_message)
             self.current_message.add_view_message(view_msg)
             span.end()
         except Exception as e:
             print(traceback.format_exc())
             logger.error("model response parse failed！" + str(e))
-            self.current_message.add_view_message(
-                f"""<span style=\"color:red\">ERROR!</span>{str(e)}
-{ai_response_text} """
-            )
-            # store current conversation
+            if not text_output:
+                yield ModelOutput.build(
+                    f"{str(e)}",
+                    "",
+                    error_code=-1,
+                )
+            else:
+                err_view_meg = (
+                    f'<span style="color:red">ERROR!</span>{str(e)}\n{ai_response_text}'
+                )
+                yield err_view_meg
+            ### store current conversation
             span.end(metadata={"error": str(e)})
         await blocking_func_to_async(
             self._executor, self.current_message.end_current_round
@@ -385,7 +469,7 @@ class BaseChat(ABC):
             self.message_adjust()
             span.end()
         except BaseAppException as e:
-            self.current_message.add_view_message(e.view)
+            self.current_message.add_view_message(e.get_ui_error())
             span.end(metadata={"error": str(e)})
         except Exception as e:
             view_message = f"<span style='color:red'>ERROR!</span> {str(e)}"
@@ -406,10 +490,16 @@ class BaseChat(ABC):
     async def _no_streaming_call_with_retry(self, payload):
         with root_tracer.start_span("BaseChat.invoke_worker_manager.generate"):
             model_output = await self.call_llm_operator(payload)
+        return await self._handle_final_output(model_output)
 
-        ai_response_text = self.prompt_template.output_parser.parse_model_nostream_resp(
-            model_output, self.prompt_template.sep
+    async def _handle_final_output(
+        self, final_output: ModelOutput, incremental: bool = False
+    ):
+        model_output = final_output
+        parsed_output = self.prompt_template.output_parser.parse_model_nostream_resp(
+            model_output, text_output=False
         )
+        ai_response_text = parsed_output.text if parsed_output.has_text else ""
         prompt_define_response = (
             self.prompt_template.output_parser.parse_prompt_response(ai_response_text)
         )
@@ -420,21 +510,35 @@ class BaseChat(ABC):
                 prompt_define_response
             ),
         }
-        with root_tracer.start_span("BaseChat.do_action", metadata=metadata):
-            result = await blocking_func_to_async(
-                self._executor, self.do_action, prompt_define_response
+        try:
+            with root_tracer.start_span("BaseChat.do_action", metadata=metadata):
+                result = await blocking_func_to_async(
+                    self._executor, self.do_action, prompt_define_response
+                )
+
+            speak_to_user = self.get_llm_speak(prompt_define_response)
+            view_message = await blocking_func_to_async(
+                self._executor,
+                self.prompt_template.output_parser.parse_view_response,
+                speak_to_user,
+                result,
+                prompt_define_response,
             )
+            if parsed_output.has_thinking and not incremental:
+                view_message = parsed_output.gen_text_with_thinking(
+                    new_text=view_message
+                )
+            return ai_response_text, view_message.replace("\n", "\\n")
+        except BaseAppException as e:
+            raise ContextAppException(e.message, e.view, model_output) from e
 
-        speak_to_user = self.get_llm_speak(prompt_define_response)
-
-        view_message = await blocking_func_to_async(
-            self._executor,
-            self.prompt_template.output_parser.parse_view_response,
-            speak_to_user,
-            result,
-            prompt_define_response,
-        )
-        return ai_response_text, view_message.replace("\n", "\\n")
+        except Exception as e:
+            logger.error("model response parse failed！" + str(e))
+            raise ContextAppException(
+                f"model response parse failed！{str(e)}\n  {ai_response_text}",
+                f"<span style='color:red'>ERROR!</span> {str(e)}",
+                model_output,
+            )
 
     @Deprecated(version="0.7.0", remove_version="0.8.0")
     async def get_llm_response(self):
@@ -447,7 +551,7 @@ class BaseChat(ABC):
             # output parse
             ai_response_text = (
                 self.prompt_template.output_parser.parse_model_nostream_resp(
-                    model_output, self.prompt_template.sep
+                    model_output
                 )
             )
             # model result deal

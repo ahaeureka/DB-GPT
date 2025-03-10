@@ -9,15 +9,19 @@ from dbgpt.core.awel.flow import (
     ResourceCategory,
     auto_register_resource,
 )
+from dbgpt.core.interface.parameter import LLMDeployModelParameters
 from dbgpt.model.proxy.base import (
     AsyncGenerateStreamFunction,
     GenerateStreamFunction,
     ProxyLLMClient,
     register_proxy_model_adapter,
 )
-from dbgpt.model.proxy.llms.chatgpt import OpenAICompatibleDeployModelParameters
 from dbgpt.model.proxy.llms.proxy_model import ProxyModel, parse_model_request
 from dbgpt.util.i18n_utils import _
+
+from ...utils.parse_utils import (
+    parse_chat_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,7 @@ logger = logging.getLogger(__name__)
     show_in_ui=False,
 )
 @dataclass
-class OllamaDeployModelParameters(OpenAICompatibleDeployModelParameters):
+class OllamaDeployModelParameters(LLMDeployModelParameters):
     """Deploy model parameters for Ollama."""
 
     provider: str = "proxy/ollama"
@@ -120,6 +124,7 @@ class OllamaLLMClient(ProxyLLMClient):
         messages = request.to_common_messages()
 
         model = request.model or self._model
+        is_reasoning_model = getattr(request.context, "is_reasoning_model", False)
         client = Client(self._api_base)
         try:
             stream = client.chat(
@@ -130,9 +135,12 @@ class OllamaLLMClient(ProxyLLMClient):
             content = ""
             for chunk in stream:
                 content = content + chunk["message"]["content"]
-                yield ModelOutput(text=content, error_code=0)
+                msg = parse_chat_message(content, extract_reasoning=is_reasoning_model)
+                yield ModelOutput.build(
+                    text=msg.content, thinking=msg.reasoning_content, error_code=0
+                )
         except ollama.ResponseError as e:
-            yield ModelOutput(
+            yield ModelOutput.build(
                 text=f"**Ollama Response Error, Please CheckErrorInfo.**: {e}",
                 error_code=-1,
             )
