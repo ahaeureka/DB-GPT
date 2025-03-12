@@ -52,9 +52,10 @@ with underscores
 4. If it's in other languages, translate them to English, and replace spaces with \
 underscores
 5. If it's special characters, delete them directly
-6. All column fields must be analyzed and converted, remember to output in JSON
+6. DuckDB adheres to the SQL standard, which requires that identifiers (column names, table names) cannot start with a number.
+7. All column fields must be analyzed and converted, remember to output in JSON
 Avoid phrases like ' // ... (similar analysis for other columns) ...'
-7. You need to provide the original column names and the transformed new column names \
+8. You need to provide the original column names and the transformed new column names \
 in the JSON, as well as your analysis of the meaning and function of that column. If \
 it's a time type, please provide the time format, such as: \
 yyyy-MM-dd HH:MM:ss
@@ -99,10 +100,11 @@ DuckDB 表结构信息如下：
 如将“年龄”转换为“age”, "Completion progress"转化为\
 "completion_progress"等
 4. 你需要提供原始的列名、转化后的列名、数据类型、数据含义、数据格式等信息
-5. 如果是时间类型请给出时间格式类似:yyyy-MM-dd HH:MM:ss.
-6. 请你针对数据从不同维度提供一些有用的分析思路给用户\
+5. 数据类型的推断应该结合数据结构和数据样本合理进行
+6. 如果是时间类型请给出时间格式类似:yyyy-MM-dd HH:MM:ss.
+7. 请你针对数据从不同维度提供一些有用的分析思路给用户\
 (可以按照分析复杂度从简单到复杂依次提供）
-7. 你需要将提取的信息按照下面的格式输出，确保输出的格式正确
+8. 你需要将提取的信息按照下面的格式输出，确保输出的格式正确
 
 
 列名的转换规则:
@@ -111,9 +113,10 @@ DuckDB 表结构信息如下：
 3. 如果是中文，将中文字段名翻译为英文，并且将空格替换为下划线
 4. 如果是其它语言，将其翻译为英文，并且将空格替换为下划线
 5. 如果是特殊字符，直接删除
-6. 所以列的字段都必须分析和转换，切记在 JSON 中输出
+6. DuckDB遵循SQL标准，要求标识符(列名、表名)不能以数字开头
+7. 所以列的字段都必须分析和转换，切记在 JSON 中输出
 ' // ... (其他列的类似分析) ...)' 之类的话术
-7. 你需要在json中提供原始列名和转化后的新的列名，以及你分析\
+8. 你需要在json中提供原始列名和转化后的新的列名，以及你分析\
 的该列的含义和作用，如果是时间类型请给出时间格式类似:\
 yyyy-MM-dd HH:MM:ss
 

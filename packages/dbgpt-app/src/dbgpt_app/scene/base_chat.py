@@ -366,7 +366,7 @@ class BaseChat(ABC):
                 if text_output:
                     full_text = view_msg
                     # Return the incremental text
-                    delta_text = full_text[len(previous_text) :]
+                    delta_text = full_text[len(previous_text):]
                     previous_text = (
                         full_text
                         if len(full_text) > len(previous_text)
@@ -389,14 +389,14 @@ class BaseChat(ABC):
                         )
                     else:
                         # Return the incremental text
-                        delta_text = full_text[len(previous_text) :]
+                        delta_text = full_text[len(previous_text):]
                         previous_text = (
                             full_text
                             if len(full_text) > len(previous_text)
                             else previous_text
                         )
                         delta_thinking_text = full_thinking_text[
-                            len(previous_thinking_text) :
+                            len(previous_thinking_text):
                         ]
                         previous_thinking_text = (
                             full_thinking_text
@@ -417,7 +417,7 @@ class BaseChat(ABC):
             if text_output:
                 full_text = view_message
                 # Return the incremental text
-                delta_text = full_text[len(previous_text) :]
+                delta_text = full_text[len(previous_text):]
                 yield delta_text if incremental else full_text
             else:
                 yield ModelOutput.build(
@@ -447,7 +447,7 @@ class BaseChat(ABC):
                     f'<span style="color:red">ERROR!</span>{str(e)}\n{ai_response_text}'
                 )
                 yield err_view_meg
-            ### store current conversation
+            # store current conversation
             span.end(metadata={"error": str(e)})
         await blocking_func_to_async(
             self._executor, self.current_message.end_current_round
@@ -533,6 +533,7 @@ class BaseChat(ABC):
             raise ContextAppException(e.message, e.view, model_output) from e
 
         except Exception as e:
+            print(traceback.format_exc())
             logger.error("model response parse failed！" + str(e))
             raise ContextAppException(
                 f"model response parse failed！{str(e)}\n  {ai_response_text}",

@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import traceback
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
@@ -391,6 +392,7 @@ class ApiCall:
                                 value.err_msg = "No executable sql！"
 
                         except Exception as e:
+                            print(traceback.format_exc())
                             logger.error(f"data prepare exception！{str(e)}")
                             value.status = Status.FAILED.value
                             value.err_msg = str(e)

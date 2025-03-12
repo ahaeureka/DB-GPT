@@ -34,7 +34,6 @@ def excel_colunm_format(old_name: str) -> str:
 def add_quotes_to_chinese_columns(sql, column_names=[]):
     parsed = sqlparse.parse(sql)
     for stmt in parsed:
-        print(f"add_quotes_to_chinese_columns stmt:{stmt}")
         process_statement(stmt, column_names)
     return str(parsed[0])
 
@@ -99,7 +98,10 @@ def process_function(function):
 
 
 def is_chinese(text):
-    return any('\u4e00' <= char <= '\u9fff' for char in text)
+    for char in text:
+        if "\u4e00" <= char <= "\u9fa5":  # BMP中的常用汉字范围
+            return True
+    return False
 
 
 def read_from_df(
@@ -121,11 +123,11 @@ def read_from_df(
     )
     # read excel file
     if file_name.endswith(".xlsx") or file_name.endswith(".xls"):
-        df_tmp = pd.read_excel(file_info, index_col=False, encoding=encoding)
+        df_tmp = pd.read_excel(file_info, index_col=False)
         df = pd.read_excel(
             file_info,
             index_col=False,
-                encoding=encoding,
+            encoding=encoding,
             converters={i: csv_colunm_foramt for i in range(df_tmp.shape[1])},
         )
     elif file_name.endswith(".csv"):
@@ -153,28 +155,28 @@ def read_from_df(
     df_tmp.drop(columns=unnamed_columns_tmp, inplace=True)
 
     df = df[df_tmp.columns.values]
-
-    columns_map = {}
-    for column_name in df_tmp.columns:
-        df[column_name] = df[column_name].astype(str)
-        columns_map.update({column_name: excel_colunm_format(column_name)})
-        try:
-            df[column_name] = pd.to_datetime(df[column_name]).dt.strftime("%Y-%m-%d")
-        except ValueError:
-            try:
-                df[column_name] = pd.to_numeric(df[column_name])
-            except ValueError:
-                try:
-                    df[column_name] = df[column_name].astype(str)
-                except Exception:
-                    print("Can't transform column: " + column_name)
-        self.df = self.df[df_tmp.columns.values]
-        #
-        self.df = ExcelDataCleaner(self.df).clean_data().get_clean_data()
+    df = ExcelDataCleaner(df)()
+    # columns_map = {}
+    # for column_name in df_tmp.columns:
+    #     df[column_name] = df[column_name].astype(str)
+    #     columns_map.update({column_name: excel_colunm_format(column_name)})
+    #     try:
+    #         df[column_name] = pd.to_datetime(df[column_name]).dt.strftime("%Y-%m-%d")
+    #     except ValueError:
+    #         try:
+    #             df[column_name] = pd.to_numeric(df[column_name])
+    #         except ValueError:
+    #             try:
+    #                 df[column_name] = df[column_name].astype(str)
+    #             except Exception:
+    #                 print("Can't transform column: " + column_name)
 
     df = df.rename(columns=lambda x: x.strip().replace(" ", "_"))
     # write data in duckdb
     db.register(table_name, df)
+    logger.info(f"read_from_df:{id(db)}:{table_name}")
+
+    # columns, datas = self.run(sql, table_name, transform=False)
     return table_name
 
 
@@ -218,7 +220,7 @@ def read_direct(
     try:
         db.sql(load_sql)
     except Exception as e:
-        logger.warning(f"Error while reading file: {str(e)}")
+        logger.warning(f"Error while reading file when load sql: {str(e)}")
         return read_from_df(db, file_path, file_name, table_name)
 
 
@@ -254,7 +256,6 @@ class ExcelReader:
                 read_direct(self.db, file_path, file_name, curr_table)
         else:
             curr_table = self.table_name
-
         # Print table schema
         result = self.db.sql(f"DESCRIBE {curr_table}")
         columns = result.fetchall()
@@ -321,7 +322,9 @@ AND dc.schema_name = 'main';
         where table_name = '{table_name}'"""
 
         columns, datas = self.run(sql, table_name, transform=False)
-        table_comment = datas[0][0]
+        table_comment = ""
+        if datas:
+            table_comment = datas[0][0]
         cl_columns, cl_datas = self.get_columns(table_name)
         ddl_sql = f"CREATE TABLE {table_name} (\n"
         column_strs = []
@@ -362,6 +365,7 @@ AND dc.schema_name = 'main';
         new_table_name: str,
         transform: TransformedExcelResponse,
     ):
+        logger.info(f"transform_table from {old_table_name} to {new_table_name}")
         table_comment = transform.description
         select_sql_list = []
         new_table = new_table_name

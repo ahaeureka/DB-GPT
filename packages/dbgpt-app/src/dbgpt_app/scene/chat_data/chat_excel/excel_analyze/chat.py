@@ -176,10 +176,13 @@ class ChatExcel(BaseChat):
         with root_tracer.start_span(
             "ChatExcel.stream_plugin_call.run_display_sql", metadata={"text": text}
         ):
-            return self.api_call.display_sql_llmvis(
-                text,
-                self.excel_reader.get_df_by_sql_ex,
-            )
+            try:
+                return self.api_call.display_sql_llmvis(
+                    text,
+                    self.excel_reader.get_df_by_sql_ex,
+                )
+            except Exception as err:
+                print(f"捕获到异常:{str(err)}", type(err))
 
     async def _handle_final_output(
         self, final_output: ModelOutput, incremental: bool = False

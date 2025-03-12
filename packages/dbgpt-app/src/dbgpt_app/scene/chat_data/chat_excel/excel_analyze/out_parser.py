@@ -36,4 +36,5 @@ class ChatExcelOutputParser(BaseOutputParser):
 
     def parse_view_response(self, speak, data, prompt_response) -> str:
         ### tool out data to table view
+        logger.info(f"parse_view_response data:{data}")
         return data
