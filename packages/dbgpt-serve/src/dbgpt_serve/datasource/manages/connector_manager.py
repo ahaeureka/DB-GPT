@@ -187,18 +187,40 @@ class ConnectorManager(BaseComponent):
             pwd = db_config.get("db_pwd")
             extConfig = db_config.get("ext_config")
             dbJson = json.loads(extConfig)
+            ignore_tables = dbJson.get("ignore_tables", None)
+            include_tables = dbJson.get("include_tables", None)
+            engine_args = dbJson.get("engine_args", None) or {}
             service_name = dbJson.get("service_name", None)
             sid = (dbJson.get("sid", None),)
             return connect_instance.from_uri_db(  # type: ignore
-                host=host, port=port, user=user, pwd=pwd, service_name=service_name
+                host=host,
+                port=port,
+                user=user,
+                pwd=pwd,
+                service_name=service_name,
+                engine_args=engine_args,
+                ignore_tables=ignore_tables,
+                include_tables=include_tables,
             )
         else:
             db_host = db_config.get("db_host")
             db_port = db_config.get("db_port")
             db_user = db_config.get("db_user")
             db_pwd = db_config.get("db_pwd")
+            ext_config_str = db_config.get("ext_config", "{}")
+            ext_config = json.loads(ext_config_str) if ext_config_str else {}
+            ignore_tables = ext_config.get("ignore_tables", None)
+            include_tables = ext_config.get("include_tables", None)
+            engine_args = ext_config.get("engine_args", None) or {}
             return connect_instance.from_uri_db(  # type: ignore
-                host=db_host, port=db_port, user=db_user, pwd=db_pwd, db_name=db_name
+                host=db_host,
+                port=db_port,
+                user=db_user,
+                pwd=db_pwd,
+                db_name=db_name,
+                engine_args=engine_args,
+                ignore_tables=ignore_tables,
+                include_tables=include_tables,
             )
 
     def _create_parameters(

@@ -86,6 +86,24 @@ class RDBMSDatasourceParameters(BaseDatasourceParameters):
     pool_pre_ping: bool = field(
         default=True, metadata={"help": _("Connection pool pre ping, default True")}
     )
+    include_tables: Optional[List[str]] = field(
+        default=None,
+        metadata={
+            "help": _(
+                "List of tables to include, if specified, only these tables will be "
+                "available"
+            )
+        },
+    )
+    ignore_tables: Optional[List[str]] = field(
+        default=None,
+        metadata={
+            "help": _(
+                "List of tables to ignore, if specified, these tables will not be "
+                "available"
+            )
+        },
+    )
 
     def engine_args(self) -> Optional[Dict[str, Any]]:
         """Return engine arguments."""
@@ -156,8 +174,10 @@ class RDBMSConnector(BaseConnector):
 
         self.view_support = view_support
         self._usable_tables: Set[str] = set()
-        self._include_tables: Set[str] = set()
-        self._ignore_tables: Set[str] = set()
+        self._include_tables: Set[str] = (
+            set(include_tables) if include_tables else set()
+        )
+        self._ignore_tables: Set[str] = set(ignore_tables) if ignore_tables else set()
         self._custom_table_info = custom_table_info
         self._sample_rows_in_table_info = sample_rows_in_table_info
         self._indexes_in_table_info = indexes_in_table_info
@@ -246,7 +266,8 @@ class RDBMSConnector(BaseConnector):
         """Get names of tables available."""
         if self._include_tables:
             return self._include_tables
-        return self._all_tables - self._ignore_tables
+        tables = self._all_tables - self._ignore_tables
+        return tables
 
     def get_table_names(self) -> Iterable[str]:
         """Get names of tables available."""
