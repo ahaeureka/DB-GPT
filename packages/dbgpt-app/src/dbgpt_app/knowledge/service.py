@@ -431,6 +431,7 @@ class KnowledgeService:
         )
         # delete vectors
         storage_connector.delete_vector_name(space.name)
+        self.storage_manager.delete_store(space.name)
         document_query = KnowledgeDocumentEntity(space=space.name)
         # delete chunks
         documents = knowledge_document_dao.get_documents(document_query)

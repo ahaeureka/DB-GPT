@@ -122,7 +122,7 @@ class DBSummaryClient:
                 chunk_parameters=chunk_parameters,
                 max_seq_length=self.app_config.service.web.embedding_model_max_seq_len,
             )
-
+            print(f"db schema assembler: {len(db_assembler.get_chunks())}")
             if len(db_assembler.get_chunks()) > 0:
                 db_assembler.persist()
         else:
@@ -140,6 +140,10 @@ class DBSummaryClient:
 
         table_vector_connector.delete_vector_name(table_vector_store_name)
         field_vector_connector.delete_vector_name(field_vector_store_name)
+        storage_manager = StorageManager.get_instance(self.system_app)
+
+        storage_manager.delete_store(table_vector_store_name)
+        storage_manager.delete_store(field_vector_store_name)
         logger.info(f"delete db profile {dbname} success")
 
     @staticmethod

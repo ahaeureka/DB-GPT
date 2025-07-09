@@ -61,6 +61,12 @@ class StorageManager(BaseComponent):
         else:
             raise ValueError(f"Does not support storage type {storage_type}")
 
+    def delete_store(self, index_name: str):
+        """Delete store."""
+        if index_name in self._store_cache:
+            with self._cache_lock:
+                del self._store_cache[index_name]
+
     def create_vector_store(self, index_name) -> VectorStoreBase:
         """Create vector store."""
         app_config = self.system_app.config.configs.get("app_config")
